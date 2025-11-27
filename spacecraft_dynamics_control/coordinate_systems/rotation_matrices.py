@@ -1,250 +1,213 @@
-# Crear: spacecraft_dynamics_control/coordinate_systems/rotation_matrices.py
+"""
+Rotation Matrix Operations for Spacecraft Dynamics
+
+This module provides comprehensive rotation matrix operations for 3D coordinate transformations
+in spacecraft attitude dynamics and control.
+"""
 
 import numpy as np
-from typing import Tuple, List
-import numpy.typing as npt
+from typing import Union, Tuple
 
-class RotationMatrices:
+class RotationMatrix:
     """
-    Operaciones con matrices de rotación 3D
-    Implementa rotaciones elementales, composición y propiedades
+    Rotation Matrix class for 3D coordinate transformations
     
-    Referencias del índice:
-    - Matrices ortogonales propias (página 28)
-    - Rotaciones elementales de Euler (página 30-31)
-    - Interpretaciones alibi y alias (página 44)
+    Provides methods for creating rotation matrices and performing
+    coordinate transformations between different reference frames.
     """
     
-    @staticmethod
-    def rx(theta: float) -> npt.NDArray:
+    def __init__(self, matrix: np.ndarray = None):
         """
-        Matriz de rotación alrededor del eje X (roll)
+        Initialize rotation matrix
         
-        Args:
-            theta: Ángulo de rotación en radianes
-            
-        Returns:
-            Matriz de rotación 3x3 alrededor del eje X
+        Parameters:
+        -----------
+        matrix : np.ndarray, optional
+            3x3 rotation matrix. If None, creates identity matrix.
         """
-        cos_theta = np.cos(theta)
-        sin_theta = np.sin(theta)
-        
-        R_x = np.array([
-            [1, 0, 0],
-            [0, cos_theta, -sin_theta],
-            [0, sin_theta, cos_theta]
-        ])
-        
-        return R_x
+        if matrix is None:
+            self.matrix = np.eye(3)
+        else:
+            if matrix.shape != (3, 3):
+                raise ValueError("Rotation matrix must be 3x3")
+            self.matrix = matrix
     
-    @staticmethod
-    def ry(theta: float) -> npt.NDArray:
+    @classmethod
+    def from_euler_angles(cls, angles: Union[list, tuple, np.ndarray], 
+                         sequence: str = '321') -> 'RotationMatrix':
         """
-        Matriz de rotación alrededor del eje Y (pitch)
+        Create rotation matrix from Euler angles
         
-        Args:
-            theta: Ángulo de rotación en radianes
+        Parameters:
+        -----------
+        angles : array-like
+            Euler angles in radians [phi, theta, psi]
+        sequence : str
+            Rotation sequence (default '321' for yaw-pitch-roll)
             
         Returns:
-            Matriz de rotación 3x3 alrededor del eje Y
+        --------
+        RotationMatrix
+            Rotation matrix object
         """
-        cos_theta = np.cos(theta)
-        sin_theta = np.sin(theta)
-        
-        R_y = np.array([
-            [cos_theta, 0, sin_theta],
-            [0, 1, 0],
-            [-sin_theta, 0, cos_theta]
-        ])
-        
-        return R_y
-    
-    @staticmethod
-    def rz(theta: float) -> npt.NDArray:
-        """
-        Matriz de rotación alrededor del eje Z (yaw)
-        
-        Args:
-            theta: Ángulo de rotación en radianes
-            
-        Returns:
-            Matriz de rotación 3x3 alrededor del eje Z
-        """
-        cos_theta = np.cos(theta)
-        sin_theta = np.sin(theta)
-        
-        R_z = np.array([
-            [cos_theta, -sin_theta, 0],
-            [sin_theta, cos_theta, 0],
-            [0, 0, 1]
-        ])
-        
-        return R_z
-    
-    @staticmethod
-    def euler_sequence(angles: Tuple[float, float, float], 
-                      sequence: str = '321') -> npt.NDArray:
-        """
-        Matriz de rotación para secuencia de Euler (Tait-Bryan)
-        
-        Args:
-            angles: Tupla de 3 ángulos en radianes (phi, theta, psi)
-            sequence: Secuencia de ejes (ej: '321' para Z-Y-X)
-            
-        Returns:
-            Matriz de rotación compuesta 3x3
-            
-        Raises:
-            ValueError: Si la secuencia no es válida
-        """
-        if len(sequence) != 3:
-            raise ValueError("La secuencia debe tener exactamente 3 caracteres")
+        angles = np.array(angles)
+        if len(angles) != 3:
+            raise ValueError("Must provide exactly 3 Euler angles")
         
         phi, theta, psi = angles
         
-        # Mapeo de ejes a funciones de rotación
-        axis_map = {
-            '1': (RotationMatrices.rx, phi),
-            '2': (RotationMatrices.ry, theta), 
-            '3': (RotationMatrices.rz, psi)
-        }
-        
-        # Verificar que la secuencia sea válida
-        for char in sequence:
-            if char not in axis_map:
-                raise ValueError(f"Eje '{char}' no válido. Use '1', '2', o '3'")
-        
-        # Construir la rotación compuesta (multiplicación en orden inverso)
-        rotation = np.eye(3)
-        for char in reversed(sequence):
-            rot_func, angle = axis_map[char]
-            rotation = rot_func(angle) @ rotation
-        
-        return rotation
-    
-    @staticmethod
-    def is_rotation_matrix(R: npt.NDArray, tolerance: float = 1e-6) -> bool:
-        """
-        Verifica si una matriz es una matriz de rotación válida
-        
-        Criterios:
-        1. Determinante ≈ 1 (para rotaciones propias)
-        2. R.T @ R ≈ I (ortogonalidad)
-        
-        Args:
-            R: Matriz a verificar
-            tolerance: Tolerancia para comparaciones
+        # Default sequence: 3-2-1 (yaw-pitch-roll)
+        if sequence == '321':
+            R1 = np.array([[1, 0, 0],
+                          [0, np.cos(phi), np.sin(phi)],
+                          [0, -np.sin(phi), np.cos(phi)]])
             
-        Returns:
-            True si es una matriz de rotación válida
-        """
-        if R.shape != (3, 3):
-            return False
-        
-        # Verificar ortogonalidad: R^T R = I
-        identity_check = R.T @ R
-        is_orthogonal = np.allclose(identity_check, np.eye(3), atol=tolerance)
-        
-        # Verificar determinante ≈ 1 (rotación propia)
-        det = np.linalg.det(R)
-        is_proper = abs(det - 1.0) < tolerance
-        
-        return is_orthogonal and is_proper
-    
-    @staticmethod
-    def rotation_angle_axis(R: npt.NDArray) -> Tuple[float, npt.NDArray]:
-        """
-        Extrae ángulo y eje de rotación de una matriz de rotación
-        basado en el Teorema de Rotación de Euler
-        
-        Args:
-            R: Matriz de rotación 3x3
+            R2 = np.array([[np.cos(theta), 0, -np.sin(theta)],
+                          [0, 1, 0],
+                          [np.sin(theta), 0, np.cos(theta)]])
             
-        Returns:
-            Tuple (ángulo, eje_unitario)
-        """
-        if not RotationMatrices.is_rotation_matrix(R):
-            raise ValueError("La matriz de entrada no es una matriz de rotación válida")
-        
-        # Calcular el ángulo de rotación
-        trace = np.trace(R)
-        angle = np.arccos(np.clip((trace - 1) / 2, -1.0, 1.0))
-        
-        # Calcular el eje de rotación
-        # Para ángulos no nulos
-        if not np.isclose(angle, 0):
-            skew_symmetric = (R - R.T) / (2 * np.sin(angle))
-            axis = np.array([skew_symmetric[2, 1], 
-                           skew_symmetric[0, 2], 
-                           skew_symmetric[1, 0]])
-            axis = axis / np.linalg.norm(axis)
+            R3 = np.array([[np.cos(psi), np.sin(psi), 0],
+                          [-np.sin(psi), np.cos(psi), 0],
+                          [0, 0, 1]])
+            
+            matrix = R1 @ R2 @ R3
+            
         else:
-            # Para rotación nula, el eje es arbitrario
-            axis = np.array([1.0, 0.0, 0.0])
+            raise NotImplementedError(f"Rotation sequence {sequence} not implemented")
         
-        return angle, axis
+        return cls(matrix)
     
-    @staticmethod
-    def rodrigues_formula(axis: npt.NDArray, angle: float) -> npt.NDArray:
+    @classmethod
+    def from_quaternion(cls, q: Union[list, tuple, np.ndarray]) -> 'RotationMatrix':
         """
-        Fórmula de Rodrigues para construir matriz de rotación
-        a partir de eje-ángulo
+        Create rotation matrix from quaternion
         
-        Args:
-            axis: Eje de rotación (no necesariamente unitario)
-            angle: Ángulo de rotación en radianes
+        Parameters:
+        -----------
+        q : array-like
+            Quaternion [q0, q1, q2, q3] where q0 is scalar part
             
         Returns:
-            Matriz de rotación 3x3
+        --------
+        RotationMatrix
+            Rotation matrix object
         """
-        axis = axis / np.linalg.norm(axis)  # Normalizar
-        kx, ky, kz = axis
+        q = np.array(q)
+        if len(q) != 4:
+            raise ValueError("Quaternion must have 4 elements")
         
-        # Matriz antisimétrica del eje K
-        K = np.array([
-            [0, -kz, ky],
-            [kz, 0, -kx],
-            [-ky, kx, 0]
-        ])
+        q0, q1, q2, q3 = q
         
-        # Fórmula de Rodrigues: R = I + sin(θ)K + (1-cos(θ))K²
-        I = np.eye(3)
-        sin_theta = np.sin(angle)
-        cos_theta = np.cos(angle)
+        # Normalize quaternion
+        q_norm = np.linalg.norm(q)
+        q0, q1, q2, q3 = q / q_norm
         
-        R = I + sin_theta * K + (1 - cos_theta) * (K @ K)
+        # Compute rotation matrix elements
+        R11 = 1 - 2*(q2**2 + q3**2)
+        R12 = 2*(q1*q2 - q0*q3)
+        R13 = 2*(q1*q3 + q0*q2)
         
-        return R
+        R21 = 2*(q1*q2 + q0*q3)
+        R22 = 1 - 2*(q1**2 + q3**2)
+        R23 = 2*(q2*q3 - q0*q1)
+        
+        R31 = 2*(q1*q3 - q0*q2)
+        R32 = 2*(q2*q3 + q0*q1)
+        R33 = 1 - 2*(q1**2 + q2**2)
+        
+        matrix = np.array([[R11, R12, R13],
+                          [R21, R22, R23],
+                          [R31, R32, R33]])
+        
+        return cls(matrix)
+    
+    def transform_vector(self, vector: np.ndarray) -> np.ndarray:
+        """
+        Transform vector using rotation matrix
+        
+        Parameters:
+        -----------
+        vector : np.ndarray
+            3D vector to transform
+            
+        Returns:
+        --------
+        np.ndarray
+            Transformed vector
+        """
+        return self.matrix @ vector
+    
+    def inverse(self) -> 'RotationMatrix':
+        """
+        Get inverse rotation matrix (transpose)
+        
+        Returns:
+        --------
+        RotationMatrix
+            Inverse rotation matrix
+        """
+        return RotationMatrix(self.matrix.T)
+    
+    def __matmul__(self, other: Union['RotationMatrix', np.ndarray]) -> Union['RotationMatrix', np.ndarray]:
+        """
+        Matrix multiplication operator
+        
+        Parameters:
+        -----------
+        other : RotationMatrix or np.ndarray
+            Other rotation matrix or vector
+            
+        Returns:
+        --------
+        RotationMatrix or np.ndarray
+            Result of multiplication
+        """
+        if isinstance(other, RotationMatrix):
+            return RotationMatrix(self.matrix @ other.matrix)
+        elif isinstance(other, np.ndarray):
+            return self.matrix @ other
+        else:
+            raise TypeError("Unsupported type for multiplication")
+    
+    def __str__(self) -> str:
+        """String representation"""
+        return f"RotationMatrix:\n{self.matrix}"
 
-# Ejemplo de uso y pruebas
-if __name__ == "__main__":
-    print("🧪 Probando matrices de rotación...")
+def create_rotation_matrix(axis: str, angle: float) -> np.ndarray:
+    """
+    Create basic rotation matrix for rotation about a principal axis
     
-    # Prueba de rotaciones elementales
-    theta = np.pi / 4  # 45 grados
+    Parameters:
+    -----------
+    axis : str
+        Rotation axis ('x', 'y', or 'z')
+    angle : float
+        Rotation angle in radians
+        
+    Returns:
+    --------
+    np.ndarray
+        3x3 rotation matrix
+    """
+    cos_a = np.cos(angle)
+    sin_a = np.sin(angle)
     
-    R_x = RotationMatrices.rx(theta)
-    R_y = RotationMatrices.ry(theta) 
-    R_z = RotationMatrices.rz(theta)
-    
-    print("✅ Rotaciones elementales creadas")
-    print(f"R_x(π/4):\n{R_x}")
-    
-    # Prueba de secuencia de Euler
-    angles = (np.pi/6, np.pi/4, np.pi/3)  # 30, 45, 60 grados
-    R_321 = RotationMatrices.euler_sequence(angles, '321')
-    print(f"✅ Secuencia 321: {angles}")
-    print(f"R_321:\n{R_321}")
-    
-    # Verificación de matriz de rotación
-    is_rot = RotationMatrices.is_rotation_matrix(R_321)
-    print(f"✅ Es matriz de rotación válida: {is_rot}")
-    
-    # Extracción de ángulo y eje
-    angle, axis = RotationMatrices.rotation_angle_axis(R_321)
-    print(f"✅ Ángulo de rotación: {angle:.4f} rad")
-    print(f"✅ Eje de rotación: {axis}")
-    
-    # Reconstrucción con fórmula de Rodrigues
-    R_reconstructed = RotationMatrices.rodrigues_formula(axis, angle)
-    print(f"✅ Reconstrucción exitosa: {np.allclose(R_321, R_reconstructed)}")
+    if axis == 'x':
+        return np.array([[1, 0, 0],
+                        [0, cos_a, sin_a],
+                        [0, -sin_a, cos_a]])
+    elif axis == 'y':
+        return np.array([[cos_a, 0, -sin_a],
+                        [0, 1, 0],
+                        [sin_a, 0, cos_a]])
+    elif axis == 'z':
+        return np.array([[cos_a, sin_a, 0],
+                        [-sin_a, cos_a, 0],
+                        [0, 0, 1]])
+    else:
+        raise ValueError("Axis must be 'x', 'y', or 'z'")
+
+# For backward compatibility
+RotationMatrix3D = RotationMatrix
+
+__all__ = ['RotationMatrix', 'RotationMatrix3D', 'create_rotation_matrix']
