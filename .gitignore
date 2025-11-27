@@ -77,3 +77,22 @@ Manifest.toml
 *.h5
 *.hdf5
 *.nc
+
+# Large generated files
+EventBus.js
+ServiceContainer.js
+
+# Node modules
+node_modules/
+
+# Backup directories
+backup/
+
+# Sub-repositories (Git submodules)
+spacecraft-dynamics-control/
+
+# Temporary TypeScript config
+tsconfig.ts-node.json
+
+# Visualization data directories
+visualizations/vector_analysis_3d/
