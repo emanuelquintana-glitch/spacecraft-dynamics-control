@@ -400,7 +400,7 @@ Earn badges as you complete problems:
 
 MIT License - see [LICENSE](LICENSE) file
 
-##  Acknowledgments.
+##  Acknowledgments
 
 - Prof. Canuto and co-authors for the excellent textbook
 - Aerospace engineering community
