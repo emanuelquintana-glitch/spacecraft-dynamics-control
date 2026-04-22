@@ -6,7 +6,7 @@
 
 > **A comprehensive problem-solving companion** for "Spacecraft Dynamics and Control: An Introduction" by Canuto, Acuna-Bravo, Molano, and Perez-Montenegro (Wiley, 2013)
 
-##  Project Vision.
+##  Project Vision
 
 This repository provides **complete, verified solutions** to problems from the textbook, with:
 -  Step-by-step mathematical derivations
